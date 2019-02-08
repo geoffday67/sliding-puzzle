@@ -1,0 +1,30 @@
+In the N64 game Mario 64 there's a level called Lethal Lava Land where our hero has to negotiate various burn-y obstacles. One of them is a sliding puzzle with a picture of Bowser on it. The pieces move and Mario has to jump from to piece to piece to collect red coins. Here's the level in action: (link to YouTube). So my plan was to make a real-life sliding puzzle with a picture of Bowser which would play the "win a star" music when you complete it. I wanted to make the most of the hardware so I decided to taunt the user with other game sounds every few seconds.
+
+The puzzle is made of wood and is battery powered. There are 15 sliding pieces in a 4 x 4 grid.
+
+The circuitry is based around a 5V Arduino Pro Mini, an SD card module, a piezo sounder, two CMOS NOR gates, a CMOS timer and 15 IR proximity detectors.
+
+Here it is in action:
+
+(video, or link to YouTube)
+
+Piece Detection
+The first question was how to detect when all the pieces are in the right place. I wanted something that was reliable but reasonably easy and cheap to implement. After a lot of thought and testing the final scheme uses a set of holes in the base and a square of paper stuck under each piece. Each paper square is black with a white dot slightly larger than the base holes. And each piece has its dot in a different place, matching the corresponding base hole. So each base hole is only covered with a white dot when the correct piece is present. (photo of the holes)
+
+Each hole then has an IR LED and phototransistor glued to it (the LED and transistor are a package: (link)). All the LEDs are wired in parallel with 330Ω resistors and the transistors are wired with pull up resistors so that when the IR is reflected back the output voltage from the detector will go low. The 15 outputs go to a pair of 8 input NOR gates (one gate's output goes to one input of the next) so that ultimately the final NOR output goes high when all the pieces are in their correct positions. I used ribbon cable and header pins to connect to the board so the final installation would be easier. (photos of the board wiring)
+
+Because the LEDs are pulsed rather than on continuously I added a resistor and capacitor to smooth out the final signal, to ensure it would always appear high to the Arduino.
+
+Power Saving
+I wanted this to be battery powered. The biggest power saving was to pulse the detection LEDs instead of having them on continuously. Initially I used an Arduino output with 10% duty cycle PWM through a MOSFET to drive the LEDs. This worked well but I wanted the Arduino to be in a low power state as much as possible, and other than driving the LEDs it would only be active when it was playing a sound. So instead I used a separate circuit with a CMOS 555 timer and I used interrupt driven software with the output of the detection circuit connected to an Arduino input pin with 'change' interrupt detection set.
+
+The Arduino software puts the processor into a low power state which can only be woken by an interrupt. It stays in that state until it needs to play a sound. Once the sound has finished it goes back to the low power state.
+
+Watchdog Timer
+The ATMega 328P has a watchdog timer. This is primarily for resetting the micro-controller if the software hangs in a loop, but it can also be configured to fire periodically with an 8 second maximum period. When it fires it calls an interrupt much the same as for the hardware interrupt used for piece detection. The software records what the source of the interrupt was (puzzle completion or watchdog timer) and plays the appropriate sound on waking.
+
+Sound Output
+I had planned to use the TMRpcm[link] library with some amplification to drive a small speaker, and an SD card module connected to the Arduino. I tried using an LM386 both in a pre-built module and building a circuit from the datasheet. But whatever I did (including lots of decoupling) I had instability, and interference from the PWM used for piece detection. So in the end because of time I stuck a piezo sounder on the outside of the case directly connected to the Arduino output, though it's a bit too quiet and doesn't look right. Maybe someone with more audio project experience would have known what to do but I ran out of time and energy. I've ordered some MP3 modules with serial interface which have an SD card reader built in and can drive a speaker directly. Hopefully that will work better and I can upgrade the project.
+
+Software
+The software was written using the PlatformIO system[link] on top of Visual Studio Code which I prefer to the standard Arduino IDE. It allows for per-project library management and a decent editor. The source code is on Github for anyone interested[link].
